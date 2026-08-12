@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sketchboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="stage">
+      <div class="window-drag-zone" aria-hidden="true"></div>
+      <div class="window-controls" aria-label="Controles da janela">
+        <button id="window-close" class="window-control close" type="button" aria-label="Fechar"></button>
+        <button id="window-minimize" class="window-control minimize" type="button" aria-label="Minimizar"></button>
+        <button id="window-maximize" class="window-control maximize" type="button" aria-label="Maximizar"></button>
+      </div>
+      <section class="workflow-switcher" aria-label="Workflows">
+        <button id="workflow-trigger" class="workflow-trigger" type="button" aria-haspopup="dialog" aria-expanded="false">
+          <span id="workflow-title">Workflow 1</span>
+          <small id="workflow-count">1 workflow</small>
+        </button>
+        <button id="workflow-add" class="workflow-add" type="button" aria-label="Novo workflow">+</button>
+
+        <div id="workflow-menu" class="workflow-menu" role="dialog" aria-label="Gerenciar workflows">
+          <div class="workflow-menu-head">
+            <div>
+              <strong>Workflows</strong>
+              <span>Separe ideias, telas e testes sem misturar a lousa.</span>
+            </div>
+            <button id="workflow-menu-close" class="workflow-menu-close" type="button" aria-label="Fechar">×</button>
+          </div>
+
+          <div id="workflow-list" class="workflow-list" role="listbox" aria-label="Lista de workflows"></div>
+
+          <div class="workflow-actions" aria-label="Importar e exportar workflows">
+            <button id="workflow-export" class="workflow-action" type="button">Exportar</button>
+            <button id="workflow-import" class="workflow-action" type="button">Importar</button>
+          </div>
+
+          <label class="workflow-name-field">
+            <span>Nome do workflow ativo</span>
+            <input id="workflow-name-input" type="text" maxlength="42" value="Workflow 1" spellcheck="false" />
+          </label>
+        </div>
+      </section>
+      <canvas id="sketch-canvas" tabindex="0" aria-label="Lousa"></canvas>
+      <div id="brush-cursor" class="brush-cursor" aria-hidden="true"></div>
+
+      <div id="empty-state" class="empty-state" aria-hidden="true">
+        <strong>Solte uma imagem ou comece a rabiscar.</strong>
+        <span>Scroll aproxima/afasta. Clique direito abre ajustes do pincel.</span>
+      </div>
+
+      <aside class="tool-island" aria-label="Ferramentas">
+        <div class="tool-group" role="group" aria-label="Ferramentas principais">
+          <button class="tool-button" type="button" data-tool="select" data-label="Selecionar" data-shortcut="V" aria-label="Selecionar">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 3l12 11-6 1.2L8.2 21 5 3z" />
+            </svg>
+          </button>
+          <button class="tool-button is-active" type="button" data-tool="pencil" data-label="Pincel" data-shortcut="B" aria-label="Pincel">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3.8 20.2l1.4-5.7L16.4 3.3a2.2 2.2 0 0 1 3.1 0l1.2 1.2a2.2 2.2 0 0 1 0 3.1L9.5 18.8l-5.7 1.4z" />
+              <path d="M14.8 4.9l4.3 4.3" />
+              <path d="M5.2 14.5l4.3 4.3" />
+              <path d="M3.8 20.2l3.3-1.1-2.2-2.2-1.1 3.3z" />
+            </svg>
+          </button>
+          <button class="tool-button" type="button" data-tool="marker" data-label="Marcador" data-shortcut="M" aria-label="Marcador">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 19h7l7-7-7-7-7 7v7z" />
+              <path d="M12 5l7 7" />
+            </svg>
+          </button>
+          <button class="tool-button" type="button" data-tool="eraser" data-label="Borracha" data-shortcut="E" aria-label="Borracha">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 15l8-8a2.8 2.8 0 0 1 4 0l3 3a2.8 2.8 0 0 1 0 4l-5 5H8l-4-4z" />
+              <path d="M10 9l7 7" />
+            </svg>
+          </button>
+          <button class="tool-button" type="button" data-tool="text" data-label="Texto" data-shortcut="T" aria-label="Texto">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 5h14" />
+              <path d="M12 5v14" />
+              <path d="M8 19h8" />
+            </svg>
+          </button>
+        </div>
+
+        <button id="color-chip" class="color-chip" type="button" aria-label="Editar cor">
+          <span id="color-preview" aria-hidden="true"></span>
+          <code id="color-hex">#FFFFFF</code>
+        </button>
+
+        <button id="clear-board" class="tool-button danger" type="button" data-label="Limpar lousa" data-shortcut="Del" aria-label="Limpar lousa">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 7h14" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+            <path d="M8 7l1-3h6l1 3" />
+            <path d="M7 7l1 13h8l1-13" />
+          </svg>
+        </button>
+      </aside>
+
+      <div id="context-menu" class="context-menu" role="dialog" aria-label="Ajustes">
+        <div class="menu-section">
+          <span class="menu-label">Ferramenta</span>
+          <div class="segmented" role="group" aria-label="Ferramenta ativa">
+            <button class="menu-tool" type="button" data-tool="select">Selecionar</button>
+            <button class="menu-tool is-active" type="button" data-tool="pencil">Lapis</button>
+            <button class="menu-tool" type="button" data-tool="marker">Marcador</button>
+            <button class="menu-tool" type="button" data-tool="eraser">Borracha</button>
+            <button class="menu-tool" type="button" data-tool="text">Texto</button>
+          </div>
+        </div>
+
+        <div class="menu-section">
+          <label class="menu-label" for="brush-size">Espessura</label>
+          <div class="range-row">
+            <input id="brush-size" type="range" min="1" max="56" value="8" />
+            <output id="brush-size-output" for="brush-size">8</output>
+          </div>
+        </div>
+
+        <div class="menu-section">
+          <label class="menu-label" for="brush-smoothing">Suavidade</label>
+          <div class="range-row">
+            <input id="brush-smoothing" type="range" min="0" max="100" value="45" />
+            <output id="brush-smoothing-output" for="brush-smoothing">45</output>
+          </div>
+        </div>
+
+        <div class="menu-section">
+          <span class="menu-label">Cor</span>
+          <div class="color-panel">
+            <span id="context-color-preview" class="context-color-preview" aria-hidden="true"></span>
+            <label class="hex-field">
+              <span>HEX</span>
+              <input id="hex-input" type="text" inputmode="text" maxlength="7" value="#FFFFFF" spellcheck="false" />
+            </label>
+            <button id="open-color-picker" class="picker-button" type="button">Aplicar</button>
+          </div>
+          <div class="swatches" aria-label="Cores">
+            <button class="swatch" type="button" data-color="#000000" style="--swatch: #000000" title="Preto">
+              <span class="sr-only">Preto</span>
+            </button>
+            <button class="swatch is-active" type="button" data-color="#ffffff" style="--swatch: #ffffff" title="Branco">
+              <span class="sr-only">Branco</span>
+            </button>
+            <button class="swatch" type="button" data-color="#808080" style="--swatch: #808080" title="Cinza">
+              <span class="sr-only">Cinza</span>
+            </button>
+            <button class="swatch" type="button" data-color="#ff3b30" style="--swatch: #ff3b30" title="Vermelho">
+              <span class="sr-only">Vermelho</span>
+            </button>
+            <button class="swatch" type="button" data-color="#0a84ff" style="--swatch: #0a84ff" title="Azul">
+              <span class="sr-only">Azul</span>
+            </button>
+            <button class="swatch" type="button" data-color="#30d158" style="--swatch: #30d158" title="Verde">
+              <span class="sr-only">Verde</span>
+            </button>
+          </div>
+        </div>
+
+        <p class="menu-hint">A borracha apaga rabiscos. Imagens ficam intactas e podem ser movidas no modo selecionar.</p>
+      </div>
+
+      <div class="zoom-pill" aria-live="polite">
+        <span id="zoom-readout">100%</span>
+      </div>
+
+      <aside id="text-panel" class="text-panel" aria-label="Ferramentas de texto">
+        <div class="text-panel-head">
+          <span>Texto</span>
+          <small>Clique para escrever. Duplo clique edita.</small>
+        </div>
+        <label class="text-field">
+          <span>Fonte</span>
+          <select id="text-font" class="native-font-select" aria-hidden="true" tabindex="-1">
+            <option value="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Inter / Sistema</option>
+            <option value="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif">SF Pro</option>
+            <option value="Georgia, 'Times New Roman', serif">Serif</option>
+            <option value="'SFMono-Regular', Menlo, Consolas, monospace">Mono</option>
+            <option value="Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif">Impact</option>
+            <option value="'Helvetica Neue', Helvetica, Arial, sans-serif">Helvetica Neue</option>
+            <option value="Avenir, 'Avenir Next', sans-serif">Avenir</option>
+            <option value="Futura, 'Trebuchet MS', sans-serif">Futura</option>
+            <option value="'Arial Black', Arial, sans-serif">Arial Black</option>
+            <option value="'Courier New', Courier, monospace">Courier New</option>
+            <option value="'Times New Roman', Times, serif">Times New Roman</option>
+          </select>
+          <div id="font-picker" class="font-picker">
+            <button id="font-picker-trigger" class="font-picker-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span>
+                <strong id="font-picker-name">Inter / Sistema</strong>
+                <small id="font-picker-sample">Aa Bb Cc</small>
+              </span>
+              <span class="font-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div id="font-picker-menu" class="font-picker-menu" role="listbox" aria-label="Fontes"></div>
+          </div>
+        </label>
+        <label class="text-field">
+          <span>Tamanho</span>
+          <input id="text-size" type="number" min="10" max="160" value="32" />
+        </label>
+        <label class="text-field">
+          <span>Largura da caixa</span>
+          <input id="text-width" type="number" min="80" max="1400" value="280" />
+        </label>
+        <div class="text-row">
+          <button id="text-bold" class="text-toggle" type="button" aria-pressed="false">B</button>
+          <button id="text-italic" class="text-toggle" type="button" aria-pressed="false">I</button>
+          <div class="align-group" role="group" aria-label="Alinhamento">
+            <button class="align-button is-active" type="button" data-align="left" aria-label="Alinhar à esquerda">
+              <span></span><span></span><span></span>
+            </button>
+            <button class="align-button" type="button" data-align="center" aria-label="Centralizar">
+              <span></span><span></span><span></span>
+            </button>
+            <button class="align-button" type="button" data-align="right" aria-label="Alinhar à direita">
+              <span></span><span></span><span></span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <div id="text-editor" class="text-editor" aria-label="Editar texto" contenteditable="true" data-placeholder="Digite aqui..." spellcheck="false"></div>
+
+      <div id="save-status" class="save-status is-saved" aria-live="polite">
+        <span class="save-dot" aria-hidden="true"></span>
+        <span id="save-status-text">Salvo</span>
+      </div>
+    </main>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

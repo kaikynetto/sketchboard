@@ -1,0 +1,51 @@
+{
+  "name": "sketchboard",
+  "version": "0.1.0",
+  "description": "A clean digital sketchboard for drawing, images, text and workflow boards.",
+  "main": "src/main.js",
+  "scripts": {
+    "dist:mac": "electron-builder --mac dmg",
+    "dist:win": "electron-builder --win nsis --x64",
+    "pack": "electron-builder --dir",
+    "start": "electron ."
+  },
+  "keywords": [
+    "electron",
+    "sketchboard",
+    "whiteboard",
+    "drawing"
+  ],
+  "author": "Kaiky Netto",
+  "license": "MIT",
+  "build": {
+    "appId": "com.kaikynetto.sketchboard",
+    "productName": "Sketchboard",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "identity": null,
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3"
+  }
+}
