@@ -45,6 +45,10 @@ const workflowList = document.querySelector("#workflow-list");
 const workflowNameInput = document.querySelector("#workflow-name-input");
 const workflowExport = document.querySelector("#workflow-export");
 const workflowImport = document.querySelector("#workflow-import");
+const mathSuggestion = document.querySelector("#math-suggestion");
+const mathSuggestionResult = document.querySelector("#math-suggestion-result");
+const mathSuggestionInsert = document.querySelector("#math-suggestion-insert");
+const mathSuggestionDismiss = document.querySelector("#math-suggestion-dismiss");
 
 const ctx = canvas.getContext("2d");
 const strokeLayer = document.createElement("canvas");
@@ -59,6 +63,8 @@ let saveQueued = false;
 let isSaving = false;
 let isLoading = true;
 let ignoreTextBlurUntil = 0;
+let activeMathSuggestion = null;
+let mathSuggestionTimer = null;
 let textEditHistoryCommitted = false;
 const undoStack = [];
 const redoStack = [];
@@ -216,6 +222,7 @@ function captureHistoryState() {
 function restoreHistoryState(snapshot) {
   closeContextMenu();
   closeTextEditor({ save: false });
+  hideMathSuggestion();
   objects.length = 0;
   objects.push(...snapshot.objects.map(cloneObject));
   nextId = snapshot.nextId;
@@ -320,6 +327,142 @@ function setSaveStatus(status, text) {
   saveStatus.classList.toggle("is-saved", status === "saved");
   saveStatus.classList.toggle("is-error", status === "error");
   saveStatusText.textContent = text;
+}
+
+function hideMathSuggestion() {
+  activeMathSuggestion = null;
+  mathSuggestion.classList.remove("is-open");
+}
+
+function positionMathSuggestion() {
+  if (!activeMathSuggestion) {
+    return;
+  }
+
+  const screen = worldToScreen(activeMathSuggestion.position);
+  const rect = mathSuggestion.getBoundingClientRect();
+  const x = clamp(screen.x, 12, window.innerWidth - rect.width - 12);
+  const y = clamp(screen.y, 46, window.innerHeight - rect.height - 12);
+
+  mathSuggestion.style.left = `${x}px`;
+  mathSuggestion.style.top = `${y}px`;
+}
+
+function showMathSuggestion(expression, result, position) {
+  const normalizedExpression = expression.replace(/\s+/g, " ").trim();
+
+  if (!normalizedExpression || !result) {
+    hideMathSuggestion();
+    return;
+  }
+
+  activeMathSuggestion = {
+    expression: normalizedExpression,
+    position,
+    result
+  };
+  mathSuggestionResult.textContent = `${normalizedExpression} = ${result}`;
+  mathSuggestion.classList.add("is-open");
+  positionMathSuggestion();
+}
+
+function tokenizeExpression(expression) {
+  const normalized = expression
+    .toLowerCase()
+    .replace(/[×·]/g, "*")
+    .replace(/[÷]/g, "/")
+    .replace(/[−–—]/g, "-")
+    .replace(/\s+/g, "");
+  const tokens = normalized.match(/[a-z]+|\d+(?:\.\d+)?|[+\-*/().]/g) || [];
+
+  return tokens.join("") === normalized ? tokens : [];
+}
+
+function formatNumber(value) {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(6)));
+}
+
+function safeEvaluateNumericExpression(expression) {
+  const normalized = expression
+    .replace(/[×·]/g, "*")
+    .replace(/[÷]/g, "/")
+    .replace(/[−–—]/g, "-");
+
+  if (!/^[\d+\-*/().\s]+$/.test(normalized) || !/\d/.test(normalized)) {
+    return null;
+  }
+
+  try {
+    const value = Function(`"use strict"; return (${normalized});`)();
+
+    return formatNumber(value);
+  } catch {
+    return null;
+  }
+}
+
+function simplifyBinaryExpression(tokens) {
+  if (tokens.length !== 3) {
+    return null;
+  }
+
+  const [left, operator, right] = tokens;
+  const leftNumber = Number(left);
+  const rightNumber = Number(right);
+  const leftIsNumber = !Number.isNaN(leftNumber);
+  const rightIsNumber = !Number.isNaN(rightNumber);
+  const leftIsVariable = /^[a-z]+$/.test(left);
+  const rightIsVariable = /^[a-z]+$/.test(right);
+
+  if (leftIsNumber && rightIsNumber) {
+    return safeEvaluateNumericExpression(tokens.join(""));
+  }
+
+  if (!leftIsVariable || !rightIsVariable) {
+    return null;
+  }
+
+  if (operator === "-" && left === right) {
+    return "0";
+  }
+
+  if (operator === "/" && left === right) {
+    return "1";
+  }
+
+  if (operator === "+" && left === right) {
+    return `2${left}`;
+  }
+
+  if (operator === "*" && left === right) {
+    return `${left}²`;
+  }
+
+  if (operator === "*") {
+    return `${left}${right}`;
+  }
+
+  return null;
+}
+
+function solveMathExpression(expression) {
+  const numericResult = safeEvaluateNumericExpression(expression);
+
+  if (numericResult !== null) {
+    return numericResult;
+  }
+
+  const tokens = tokenizeExpression(expression);
+
+  if (tokens.length === 0) {
+    return null;
+  }
+
+  return simplifyBinaryExpression(tokens);
 }
 
 function serializeObject(object) {
@@ -918,6 +1061,230 @@ function drawStroke(targetCtx, stroke) {
   targetCtx.restore();
 }
 
+function strokeBounds(stroke) {
+  if (!stroke?.points?.length) {
+    return null;
+  }
+
+  const xs = stroke.points.map((point) => point.x);
+  const ys = stroke.points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  return {
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+    height: Math.max(1, maxY - minY),
+    maxX,
+    maxY,
+    minX,
+    minY,
+    width: Math.max(1, maxX - minX)
+  };
+}
+
+function mergeBounds(boundsList) {
+  const minX = Math.min(...boundsList.map((bounds) => bounds.minX));
+  const maxX = Math.max(...boundsList.map((bounds) => bounds.maxX));
+  const minY = Math.min(...boundsList.map((bounds) => bounds.minY));
+  const maxY = Math.max(...boundsList.map((bounds) => bounds.maxY));
+
+  return {
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+    height: Math.max(1, maxY - minY),
+    maxX,
+    maxY,
+    minX,
+    minY,
+    width: Math.max(1, maxX - minX)
+  };
+}
+
+function lineAngle(stroke) {
+  const first = stroke.points[0];
+  const last = stroke.points.at(-1);
+
+  return Math.atan2(last.y - first.y, last.x - first.x) * (180 / Math.PI);
+}
+
+function isMostlyHorizontal(bounds) {
+  return bounds.width > bounds.height * 3.4;
+}
+
+function isMostlyVertical(bounds) {
+  return bounds.height > bounds.width * 3.2;
+}
+
+function isDiagonalStroke(stroke) {
+  const bounds = strokeBounds(stroke);
+  const angle = Math.abs(lineAngle(stroke));
+
+  return bounds && bounds.width > 8 && bounds.height > 8 && angle > 24 && angle < 156;
+}
+
+function groupExpressionStrokes(strokes) {
+  const prepared = strokes
+    .map((stroke) => ({ bounds: strokeBounds(stroke), stroke }))
+    .filter((entry) => entry.bounds)
+    .sort((a, b) => a.bounds.minX - b.bounds.minX);
+  const groups = [];
+
+  prepared.forEach((entry) => {
+    const previous = groups.at(-1);
+
+    if (!previous) {
+      groups.push([entry]);
+      return;
+    }
+
+    const previousBounds = mergeBounds(previous.map((item) => item.bounds));
+    const gap = entry.bounds.minX - previousBounds.maxX;
+    const overlapsX = entry.bounds.minX <= previousBounds.maxX + 8 / state.zoom;
+    const closeY =
+      Math.abs(entry.bounds.centerY - previousBounds.centerY) <
+      Math.max(38 / state.zoom, previousBounds.height * 0.75, entry.bounds.height * 0.75);
+
+    if ((overlapsX || gap < Math.max(18 / state.zoom, previousBounds.width * 0.35)) && closeY) {
+      previous.push(entry);
+    } else {
+      groups.push([entry]);
+    }
+  });
+
+  return groups.map((group) => ({
+    bounds: mergeBounds(group.map((entry) => entry.bounds)),
+    strokes: group.map((entry) => entry.stroke)
+  }));
+}
+
+function classifyMathGlyph(group, averageHeight) {
+  const bounds = group.bounds;
+  const horizontalStrokes = group.strokes.filter((stroke) => isMostlyHorizontal(strokeBounds(stroke)));
+  const verticalStrokes = group.strokes.filter((stroke) => isMostlyVertical(strokeBounds(stroke)));
+  const diagonalStrokes = group.strokes.filter(isDiagonalStroke);
+
+  if (bounds.width > bounds.height * 3.2) {
+    return "-";
+  }
+
+  if (horizontalStrokes.length && verticalStrokes.length) {
+    return "+";
+  }
+
+  if (diagonalStrokes.length >= 2) {
+    return bounds.height < averageHeight * 0.72 ? "*" : "x";
+  }
+
+  if (isMostlyVertical(bounds)) {
+    return "1";
+  }
+
+  if (
+    group.strokes.length === 1 &&
+    Math.abs(group.strokes[0].points[0].x - group.strokes[0].points.at(-1).x) < bounds.width * 0.35 &&
+    Math.abs(group.strokes[0].points[0].y - group.strokes[0].points.at(-1).y) < bounds.height * 0.35 &&
+    bounds.width > 12 &&
+    bounds.height > 12
+  ) {
+    return "0";
+  }
+
+  if (bounds.height > bounds.width * 1.18 && diagonalStrokes.length >= 1) {
+    return "y";
+  }
+
+  if (diagonalStrokes.length === 1 && bounds.width > 10 && bounds.height > 10) {
+    return "x";
+  }
+
+  return null;
+}
+
+function expressionFromStrokes(strokes) {
+  const groups = groupExpressionStrokes(strokes);
+
+  if (groups.length < 3 || groups.length > 7) {
+    return null;
+  }
+
+  const averageHeight =
+    groups.reduce((total, group) => total + group.bounds.height, 0) / groups.length;
+  const glyphs = groups.map((group) => classifyMathGlyph(group, averageHeight));
+
+  if (glyphs.some((glyph) => !glyph)) {
+    return null;
+  }
+
+  for (let index = 1; index < glyphs.length - 1; index += 1) {
+    if (glyphs[index] === "x" && /^[a-z0-9]+$/.test(glyphs[index - 1]) && /^[a-z0-9]+$/.test(glyphs[index + 1])) {
+      glyphs[index] = "*";
+    }
+  }
+
+  return glyphs.join(" ");
+}
+
+function collectStrokeExpressionCandidate(latestStroke) {
+  const latestBounds = strokeBounds(latestStroke);
+
+  if (!latestBounds) {
+    return null;
+  }
+
+  const sameLineThreshold = Math.max(42 / state.zoom, latestBounds.height * 1.7);
+  const candidate = [];
+
+  for (let index = objects.length - 1; index >= 0 && candidate.length < 14; index -= 1) {
+    const object = objects[index];
+
+    if (object.type !== "stroke" || object.tool === "eraser") {
+      continue;
+    }
+
+    const bounds = strokeBounds(object);
+
+    if (!bounds) {
+      continue;
+    }
+
+    if (Math.abs(bounds.centerY - latestBounds.centerY) <= sameLineThreshold) {
+      candidate.push(object);
+      continue;
+    }
+
+    if (candidate.length > 0) {
+      break;
+    }
+  }
+
+  return candidate.reverse();
+}
+
+function detectMathFromRecentStrokes(latestStroke) {
+  const candidate = collectStrokeExpressionCandidate(latestStroke);
+
+  if (!candidate || candidate.length < 3) {
+    return;
+  }
+
+  const expression = expressionFromStrokes(candidate);
+  const result = expression ? solveMathExpression(expression) : null;
+
+  if (!result) {
+    hideMathSuggestion();
+    return;
+  }
+
+  const bounds = mergeBounds(candidate.map(strokeBounds).filter(Boolean));
+  showMathSuggestion(expression, result, {
+    x: bounds.maxX + 18 / state.zoom,
+    y: bounds.minY
+  });
+}
+
 function drawImageObject(object) {
   ctx.drawImage(object.image, object.x, object.y, object.width, object.height);
 }
@@ -1092,6 +1459,8 @@ function render() {
   if (selected?.type === "text" && textEditor.classList.contains("is-open")) {
     positionTextEditor(selected);
   }
+
+  positionMathSuggestion();
 }
 
 function restoreImageObject(serialized) {
@@ -1239,6 +1608,7 @@ function applyWorkflowState(workflow) {
 async function loadWorkflowIntoBoard(workflow) {
   closeContextMenu();
   closeTextEditor({ save: false });
+  hideMathSuggestion();
   objects.length = 0;
   objects.push(...(await restoreObjects(workflow.objects)));
   nextId = workflow.nextId || Math.max(0, ...objects.map((object) => object.id)) + 1;
@@ -1696,6 +2066,77 @@ function createTextObject(world) {
   textEditHistoryCommitted = true;
 }
 
+function createTextObjectFromContent(text, world, options = {}) {
+  closeTextEditor();
+  commitHistory();
+  const fontSize = options.fontSize || state.text.fontSize;
+  const object = {
+    align: options.align || state.text.align,
+    color: options.color || state.color,
+    fontFamily: options.fontFamily || state.text.fontFamily,
+    fontSize,
+    fontStyle: options.fontStyle || state.text.fontStyle,
+    fontWeight: options.fontWeight || state.text.fontWeight,
+    height: fontSize * 1.4,
+    id: nextId++,
+    lineHeight: fontSize * 1.24,
+    text,
+    type: "text",
+    width: options.width || Math.max(120, Math.min(320, text.length * fontSize * 0.72)),
+    x: world.x,
+    y: world.y
+  };
+
+  measureTextObject(object);
+  objects.push(object);
+  state.selectedId = object.id;
+  setTool("select");
+  render();
+  scheduleSave();
+  return object;
+}
+
+function expressionFromText(text) {
+  const lines = String(text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const candidate = lines.at(-1) || "";
+
+  if (!/[+\-*/×·÷−–—]/.test(candidate)) {
+    return null;
+  }
+
+  return candidate
+    .replace(/=.*/, "")
+    .replace(/[?¿]/g, "")
+    .trim();
+}
+
+function detectMathFromTextObject(object) {
+  const expression = expressionFromText(object.text);
+  const result = expression ? solveMathExpression(expression) : null;
+
+  if (!result) {
+    hideMathSuggestion();
+    return;
+  }
+
+  showMathSuggestion(expression, result, {
+    x: object.x + object.width + 12 / state.zoom,
+    y: object.y
+  });
+}
+
+function scheduleMathDetectionFromText(object) {
+  window.clearTimeout(mathSuggestionTimer);
+  mathSuggestionTimer = window.setTimeout(() => {
+    if (state.editingTextId === object.id || state.selectedId === object.id) {
+      detectMathFromTextObject(object);
+    }
+  }, 260);
+}
+
 function startTextInteraction(world) {
   const hit = hitTestObject(world);
 
@@ -1847,6 +2288,7 @@ function pointerUp(event) {
   if (interaction?.type === "draw" && interaction.lastRawPoint) {
     appendStabilizedPoint(interaction, interaction.lastRawPoint, true);
     render();
+    detectMathFromRecentStrokes(interaction.stroke);
   }
 
   if (hadInteraction) {
@@ -2211,6 +2653,7 @@ textEditor.addEventListener("input", () => {
     measureTextObject(selected);
     positionTextEditor(selected);
     render();
+    scheduleMathDetectionFromText(selected);
     scheduleSave(500);
   }
 });
@@ -2253,12 +2696,29 @@ brushSmoothing.addEventListener("input", (event) => {
 
 clearButton.addEventListener("click", () => {
   closeTextEditor();
+  hideMathSuggestion();
   commitHistory();
   objects.length = 0;
   state.selectedId = null;
   render();
   scheduleSave();
 });
+
+mathSuggestionInsert.addEventListener("click", () => {
+  if (!activeMathSuggestion) {
+    return;
+  }
+
+  const suggestion = activeMathSuggestion;
+  hideMathSuggestion();
+  createTextObjectFromContent(`= ${suggestion.result}`, suggestion.position, {
+    fontSize: Math.max(24, state.text.fontSize),
+    fontWeight: 700,
+    width: 120
+  });
+});
+
+mathSuggestionDismiss.addEventListener("click", hideMathSuggestion);
 
 window.addEventListener("copy", copySelectedObject);
 
@@ -2382,6 +2842,7 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeContextMenu();
     closeTextEditor({ save: false });
+    hideMathSuggestion();
     state.selectedId = null;
     render();
     scheduleSave();

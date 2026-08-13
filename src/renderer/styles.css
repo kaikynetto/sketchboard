@@ -713,6 +713,84 @@ output {
   z-index: 5;
 }
 
+.math-suggestion {
+  -webkit-app-region: no-drag;
+  align-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 58%),
+    rgba(18, 18, 18, 0.96);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  box-shadow: var(--shadow);
+  color: var(--text);
+  display: none;
+  gap: 10px;
+  grid-template-columns: 1fr auto;
+  max-width: min(360px, calc(100vw - 24px));
+  min-width: 220px;
+  padding: 9px 9px 9px 11px;
+  position: fixed;
+  transform: translateY(-50%);
+  z-index: 6;
+}
+
+.math-suggestion.is-open {
+  display: grid;
+}
+
+.math-suggestion-kicker {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.math-suggestion strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  grid-column: 1;
+  line-height: 1.2;
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.math-suggestion-actions {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.math-suggestion-actions button {
+  background: var(--active-bg);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--active-text);
+  font-size: 12px;
+  font-weight: 850;
+  height: 30px;
+  padding: 0 10px;
+}
+
+.math-suggestion-actions button:last-child {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--muted);
+  font-size: 17px;
+  padding: 0;
+  width: 30px;
+}
+
+.math-suggestion-actions button:hover {
+  filter: brightness(0.92);
+}
+
 .text-panel {
   -webkit-app-region: no-drag;
   background:
