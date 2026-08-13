@@ -1110,6 +1110,37 @@ function lineAngle(stroke) {
   return Math.atan2(last.y - first.y, last.x - first.x) * (180 / Math.PI);
 }
 
+function strokePathLength(stroke) {
+  return stroke.points.reduce((total, point, index) => {
+    if (index === 0) {
+      return total;
+    }
+
+    const previous = stroke.points[index - 1];
+
+    return total + Math.hypot(point.x - previous.x, point.y - previous.y);
+  }, 0);
+}
+
+function endpointSpread(stroke) {
+  const first = stroke.points[0];
+  const last = stroke.points.at(-1);
+
+  return Math.hypot(last.x - first.x, last.y - first.y);
+}
+
+function spreadInBand(points, axis, min, max) {
+  const values = points
+    .filter((point) => point.y >= min && point.y <= max)
+    .map((point) => point[axis]);
+
+  if (values.length < 2) {
+    return 0;
+  }
+
+  return Math.max(...values) - Math.min(...values);
+}
+
 function isMostlyHorizontal(bounds) {
   return bounds.width > bounds.height * 3.4;
 }
@@ -1123,6 +1154,58 @@ function isDiagonalStroke(stroke) {
   const angle = Math.abs(lineAngle(stroke));
 
   return bounds && bounds.width > 8 && bounds.height > 8 && angle > 24 && angle < 156;
+}
+
+function looksLikeDigitOne(stroke, bounds) {
+  if (!stroke || !bounds || bounds.height < 18 || bounds.width > bounds.height * 0.82) {
+    return false;
+  }
+
+  const first = stroke.points[0];
+  const last = stroke.points.at(-1);
+  const topY = bounds.minY + bounds.height * 0.34;
+  const bottomY = bounds.minY + bounds.height * 0.68;
+  const crossesHeight =
+    (first.y <= topY && last.y >= bottomY) || (last.y <= topY && first.y >= bottomY);
+  const straightness = endpointSpread(stroke) / Math.max(1, strokePathLength(stroke));
+
+  return crossesHeight && straightness > 0.62;
+}
+
+function looksLikeDigitTwo(stroke, bounds) {
+  if (!stroke || !bounds || bounds.width < 16 || bounds.height < 22) {
+    return false;
+  }
+
+  const first = stroke.points[0];
+  const last = stroke.points.at(-1);
+  const startsOrEndsTop =
+    first.y <= bounds.minY + bounds.height * 0.38 ||
+    last.y <= bounds.minY + bounds.height * 0.38;
+  const startsOrEndsBottom =
+    first.y >= bounds.minY + bounds.height * 0.62 ||
+    last.y >= bounds.minY + bounds.height * 0.62;
+  const topSpread = spreadInBand(
+    stroke.points,
+    "x",
+    bounds.minY,
+    bounds.minY + bounds.height * 0.38
+  );
+  const bottomSpread = spreadInBand(
+    stroke.points,
+    "x",
+    bounds.minY + bounds.height * 0.68,
+    bounds.maxY
+  );
+  const pathRatio = strokePathLength(stroke) / Math.max(1, endpointSpread(stroke));
+
+  return (
+    startsOrEndsTop &&
+    startsOrEndsBottom &&
+    topSpread > bounds.width * 0.34 &&
+    bottomSpread > bounds.width * 0.34 &&
+    pathRatio > 1.18
+  );
 }
 
 function groupExpressionStrokes(strokes) {
@@ -1147,7 +1230,7 @@ function groupExpressionStrokes(strokes) {
       Math.abs(entry.bounds.centerY - previousBounds.centerY) <
       Math.max(38 / state.zoom, previousBounds.height * 0.75, entry.bounds.height * 0.75);
 
-    if ((overlapsX || gap < Math.max(18 / state.zoom, previousBounds.width * 0.35)) && closeY) {
+    if ((overlapsX || gap < 8 / state.zoom) && closeY) {
       previous.push(entry);
     } else {
       groups.push([entry]);
@@ -1165,9 +1248,18 @@ function classifyMathGlyph(group, averageHeight) {
   const horizontalStrokes = group.strokes.filter((stroke) => isMostlyHorizontal(strokeBounds(stroke)));
   const verticalStrokes = group.strokes.filter((stroke) => isMostlyVertical(strokeBounds(stroke)));
   const diagonalStrokes = group.strokes.filter(isDiagonalStroke);
+  const onlyStroke = group.strokes.length === 1 ? group.strokes[0] : null;
 
   if (bounds.width > bounds.height * 3.2) {
     return "-";
+  }
+
+  if (looksLikeDigitTwo(onlyStroke, bounds)) {
+    return "2";
+  }
+
+  if (looksLikeDigitOne(onlyStroke, bounds)) {
+    return "1";
   }
 
   if (horizontalStrokes.length && verticalStrokes.length) {
@@ -1192,7 +1284,7 @@ function classifyMathGlyph(group, averageHeight) {
     return "0";
   }
 
-  if (bounds.height > bounds.width * 1.18 && diagonalStrokes.length >= 1) {
+  if (group.strokes.length >= 2 && bounds.height > bounds.width * 1.18 && diagonalStrokes.length >= 1) {
     return "y";
   }
 
