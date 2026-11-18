@@ -13,14 +13,18 @@ Sketchboard is a clean Electron whiteboard for drawing, placing images, editing 
 - Auto-save workspace state.
 - Export/import workflow configuration with `.sketchboard.json` files.
 
-## Installers
+## Download
 
-The project builds these installers:
+Grab the latest installer from the [Releases](https://github.com/kaikynetto/sketchboard/releases) page:
 
-- macOS: `Sketchboard-0.1.0-arm64.dmg`
-- Windows: `Sketchboard Setup 0.1.0.exe`
+| OS | File |
+|---|---|
+| macOS (Apple Silicon) | `Sketchboard-<version>-mac-arm64.dmg` |
+| macOS (Intel) | `Sketchboard-<version>-mac-x64.dmg` |
+| Windows | `Sketchboard-<version>-win-x64.exe` |
+| Linux | `Sketchboard-<version>-linux-x86_64.AppImage` or `Sketchboard-<version>-linux-amd64.deb` |
 
-After running the build commands, both files are saved in `dist/`.
+Each release includes `SHA256SUMS.txt` so you can verify downloads.
 
 ## Run locally
 
@@ -34,10 +38,19 @@ npm start
 ```bash
 npm run dist:mac
 npm run dist:win
+npm run dist:linux
 ```
 
-Generated installers are saved in `dist/`.
+Generated installers are saved in `dist/`. See [CONTRIBUTING.md](CONTRIBUTING.md) for signing and releases.
 
 ## Workflow backup
 
 Use the workflow menu inside the app to export all workflows to a `.sketchboard.json` file and import them later into another workspace.
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) first.
+
+## License
+
+[MIT](LICENSE) © Kaiky Netto and Raphael Xavier
