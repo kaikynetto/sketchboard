@@ -4,8 +4,10 @@
   "description": "A clean digital sketchboard for drawing, images, text and workflow boards.",
   "main": "src/main.js",
   "scripts": {
-    "dist:mac": "electron-builder --mac dmg",
-    "dist:win": "electron-builder --win nsis --x64",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer/renderer.js",
+    "dist:linux": "electron-builder --linux --x64",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win --x64",
     "pack": "electron-builder --dir",
     "start": "electron ."
   },
@@ -15,7 +17,7 @@
     "whiteboard",
     "drawing"
   ],
-  "author": "Kaiky Netto",
+  "author": "Kaiky Netto and Raphael Xavier",
   "license": "MIT",
   "build": {
     "appId": "com.kaikynetto.sketchboard",
@@ -29,23 +31,56 @@
     },
     "mac": {
       "category": "public.app-category.graphics-design",
-      "identity": null,
       "target": [
-        "dmg"
-      ]
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": true
     },
     "win": {
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "artifactName": "Sketchboard-${version}-${os}-${arch}.${ext}",
+    "linux": {
+      "category": "Graphics",
+      "maintainer": "Sketchboard contributors <noreply@github.com>",
+      "synopsis": "A clean digital sketchboard",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
     }
   },
   "devDependencies": {
     "electron": "^43.1.0",
     "electron-builder": "^26.15.3"
+  },
+  "homepage": "https://github.com/kaikynetto/sketchboard#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaikynetto/sketchboard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kaikynetto/sketchboard/issues"
   }
 }
