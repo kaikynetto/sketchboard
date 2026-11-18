@@ -22,7 +22,7 @@ npm start
 | `src/main.js` | Electron main process: window, file save/load, export/import |
 | `src/preload.js` | Safe bridge exposed to the renderer as `window.sketchboard` |
 | `src/renderer/` | The app itself: canvas, tools, workflows, math assistant |
-| `build/` | Installer resources (macOS entitlements) |
+| `build/` | Installer resources: app icon (`icon.svg` is the source, `npm run icon` regenerates `icon.png`) and macOS entitlements |
 | `scripts/` | Maintenance scripts |
 
 ## AI agents and Claude Code
