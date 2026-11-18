@@ -8,6 +8,7 @@
     "dist:linux": "electron-builder --linux --x64",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win --x64",
+    "icon": "electron scripts/generate-icon.js",
     "pack": "electron-builder --dir",
     "start": "electron ."
   },
