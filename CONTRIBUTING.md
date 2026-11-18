@@ -25,6 +25,14 @@ npm start
 | `build/` | Installer resources (macOS entitlements) |
 | `scripts/` | Maintenance scripts |
 
+## AI agents and Claude Code
+
+[AGENTS.md](AGENTS.md) summarizes commands, layout and rules for AI coding agents (`CLAUDE.md` imports it). It is also a good one-page overview for humans.
+
+### Skills
+
+The repo ships project skills in `.claude/skills/` so contributors using Claude Code follow the same standards: `sketchboard-conventions`, `add-board-tool`, `add-ipc-channel`, `change-workspace-format`, `pre-pr-check` and `cut-release`. They are plain Markdown, so they also work as a reference for anyone writing code by hand.
+
 ## Making changes
 
 1. Open an issue first for anything bigger than a small fix, so we can agree on the approach.
