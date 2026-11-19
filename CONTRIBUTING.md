@@ -57,9 +57,9 @@ npm run dist:win     # Windows installer (x64)
 npm run dist:linux   # Linux AppImage and deb (x64)
 ```
 
-Output goes to `dist/`. Local builds are unsigned unless you set the signing variables described below.
+Output goes to `dist/`.
 
-## Releases and signing (maintainers)
+## Releases (maintainers)
 
 Releases are built by GitHub Actions when a tag like `v0.2.0` is pushed:
 
@@ -68,21 +68,9 @@ npm version minor        # bumps package.json and creates the tag
 git push --follow-tags
 ```
 
-The workflow builds all three platforms, signs them when secrets are configured, generates `SHA256SUMS.txt` and publishes a GitHub Release.
+The workflow builds all three platforms, generates `SHA256SUMS.txt` and publishes a GitHub Release. Tags with a suffix, like `v0.2.0-rc.1`, are published as pre-releases and never become the "latest" release offered on the landing page. Stable releases also rebuild the landing page through the `VERCEL_DEPLOY_HOOK_URL` secret, when it is set.
 
-Repository secrets used for signing (all optional; unsigned builds are produced without them):
-
-| Secret | Purpose |
-|---|---|
-| `MAC_CERTIFICATE` | Base64 of the *Developer ID Application* `.p12` certificate |
-| `MAC_CERTIFICATE_PASSWORD` | Password of that `.p12` |
-| `APPLE_ID` | Apple ID used for notarization |
-| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for that Apple ID |
-| `APPLE_TEAM_ID` | Apple Developer team ID |
-| `WIN_CERTIFICATE` | Base64 of the Authenticode `.pfx` certificate |
-| `WIN_CERTIFICATE_PASSWORD` | Password of that `.pfx` |
-
-Linux packages are not signed; verify them with `SHA256SUMS.txt`.
+Installers are not code signed. On first launch, macOS users open the app with right click → Open, and Windows users may see a SmartScreen prompt. Downloads can be verified with `SHA256SUMS.txt`.
 
 ## Reporting security issues
 
