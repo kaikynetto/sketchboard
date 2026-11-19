@@ -1,6 +1,7 @@
 name: Release
 
-# Push a tag like v0.2.0 to build, sign and publish installers.
+# Push a tag like v0.2.0 to build and publish installers.
+# Tags with a suffix (v0.2.0-rc.1) are published as pre-releases.
 on:
   push:
     tags: ["v*"]
@@ -31,21 +32,12 @@ jobs:
       - run: npm ci
       - run: npm run check
 
-      # Signing is optional: without the secrets below the build still works
-      # and produces unsigned installers.
+      # Installers are unsigned (no paid certificates). electron-builder must not
+      # publish by itself: the release job below uploads everything at once.
       - name: Build installers
-        run: npm run ${{ matrix.script }}
+        run: npm run ${{ matrix.script }} -- --publish never
         env:
-          # macOS signing (Developer ID Application certificate, base64 .p12)
-          CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.MAC_CERTIFICATE || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.MAC_CERTIFICATE_PASSWORD || '' }}
-          # macOS notarization
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Windows signing (Authenticode certificate, base64 .pfx)
-          WIN_CSC_LINK: ${{ matrix.os == 'windows-latest' && secrets.WIN_CERTIFICATE || '' }}
-          WIN_CSC_KEY_PASSWORD: ${{ matrix.os == 'windows-latest' && secrets.WIN_CERTIFICATE_PASSWORD || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -73,3 +65,17 @@ jobs:
         with:
           files: release/*
           generate_release_notes: true
+          # Tags like v0.2.0-rc.1 are pre-releases: they never become "latest",
+          # so the landing page keeps offering the last stable version.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+      - name: Update landing page
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            curl -fsS -X POST "$VERCEL_DEPLOY_HOOK_URL"
+          else
+            echo "VERCEL_DEPLOY_HOOK_URL not set, skipping landing page rebuild"
+          fi

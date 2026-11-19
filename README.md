@@ -41,7 +41,7 @@ npm run dist:win
 npm run dist:linux
 ```
 
-Generated installers are saved in `dist/`. See [CONTRIBUTING.md](CONTRIBUTING.md) for signing and releases.
+Generated installers are saved in `dist/`. Installers are not code signed. See [CONTRIBUTING.md](CONTRIBUTING.md) for releases.
 
 ## Workflow backup
 
